@@ -1,0 +1,265 @@
+# DialogChain Pipeline Configuration - Simple DSL
+# This YAML format minimizes configuration complexity while maximizing flexibility
+
+name: "smart_security_system"
+version: "1.0.0"
+description: "AI-powered security monitoring with multi-language processing"
+
+# =============================================================================
+# TRIGGERS - Various input sources with minimal configuration
+# =============================================================================
+triggers:
+  - id: camera_feed
+    type: http
+    port: 8080
+    path: /camera/frame
+    enabled: true
+
+  - id: motion_sensor
+    type: mqtt
+    broker: "mqtt://localhost:1883"
+    topic: "sensors/motion"
+    enabled: true
+
+  - id: scheduled_check
+    type: timer
+    interval: 30000  # 30 seconds
+    enabled: true
+
+  - id: file_upload
+    type: file_watch
+    path: "/incoming/videos"
+    pattern: "*.mp4"
+    enabled: true
+
+  - id: grpc_service
+    type: grpc
+    port: 9090
+    service: "SecurityService"
+    method: "ProcessFrame"
+    enabled: false
+
+# =============================================================================
+# PROCESSORS - Multi-language processing with dependency management
+# =============================================================================
+processors:
+  # Python AI/ML processing
+  - id: object_detection
+    type: python
+    script: "scripts/yolo_detect.py"
+    venv: "/opt/ml-env"
+    parallel: true
+    timeout: 5000
+    retry: 2
+    dependencies: []
+    environment:
+      CUDA_VISIBLE_DEVICES: "0"
+      MODEL_PATH: "/models/yolov8n.pt"
+      CONFIDENCE_THRESHOLD: "0.6"
+
+  # Go-based high-performance analysis
+  - id: threat_analysis
+    type: go
+    binary: "./analyzers/threat-detector"
+    args: ["--confidence=0.7", "--realtime"]
+    parallel: false
+    timeout: 2000
+    retry: 1
+    dependencies: ["object_detection"]
+
+  # Rust WASM for edge processing
+  - id: edge_filter
+    type: rust_wasm
+    wasm: "./filters/noise_reduction.wasm"
+    parallel: true
+    timeout: 1000
+    retry: 0
+    dependencies: []
+
+  # Node.js for API integrations
+  - id: external_enrichment
+    type: node
+    script: "enrichers/geo_lookup.js"
+    npm_env: "/opt/node-env"
+    parallel: true
+    timeout: 3000
+    retry: 2
+    dependencies: ["threat_analysis"]
+
+  # Docker containerized processing
+  - id: ml_inference
+    type: docker
+    image: "tensorflow/serving:latest"
+    command: ["--model_name=security_model", "--port=8501"]
+    parallel: true
+    timeout: 4000
+    retry: 1
+    dependencies: ["edge_filter"]
+
+  # Native function call (for maximum performance)
+  - id: fast_transform
+    type: native
+    function: "image_preprocessing"
+    parallel: true
+    timeout: 500
+    retry: 0
+    dependencies: []
+
+  # LLM integration for intelligent analysis
+  - id: context_analysis
+    type: llm
+    model: "gpt-4"
+    prompt: |
+      Analyze this security event and determine threat level:
+      Context: {{context}}
+      Objects detected: {{objects}}
+      Time: {{timestamp}}
+      
+      Respond with JSON: {"threat_level": 0-1, "description": "...", "actions": [...]}
+    parallel: false
+    timeout: 10000
+    retry: 1
+    dependencies: ["threat_analysis", "external_enrichment"]
+
+# =============================================================================
+# OUTPUTS - Flexible output destinations with batching and conditions
+# =============================================================================
+outputs:
+  # Email alerts for high-priority threats
+  - id: security_alert
+    type: email
+    smtp: "smtp://localhost:587"
+    to: ["security@company.com", "admin@company.com"]
+    condition: "threat_level > 0.8"
+    template: "alert_template.html"
+
+  # Real-time dashboard updates
+  - id: dashboard_update
+    type: websocket
+    url: "ws://dashboard:3000/alerts"
+    batch_size: 10
+    condition: "threat_level > 0.3"
+
+  # MQTT for IoT device communication
+  - id: iot_response
+    type: mqtt
+    broker: "mqtt://localhost:1883"
+    topic: "security/response"
+    condition: "threat_level > 0.5"
+
+  # Database logging for audit
+  - id: audit_log
+    type: database
+    connection: "postgresql://user:pass@localhost/security"
+    table: "security_events"
+    batch_size: 100
+
+  # File storage for evidence
+  - id: evidence_storage
+    type: file
+    path: "/evidence/{{date}}/{{event_id}}"
+    format: "json"
+    condition: "threat_level > 0.6"
+
+  # HTTP API callback
+  - id: external_notification
+    type: http
+    url: "https://api.security-service.com/events"
+    method: "POST"
+    headers:
+      Authorization: "Bearer {{API_TOKEN}}"
+    condition: "threat_level > 0.9"
+
+# =============================================================================
+# SETTINGS - Global configuration for performance and security
+# =============================================================================
+settings:
+  performance:
+    max_concurrent: 10
+    buffer_size: 1000
+    worker_threads: 4
+
+  monitoring:
+    enabled: true
+    metrics_port: 9100
+    health_check_port: 8090
+    log_level: "INFO"
+
+  security:
+    require_auth: true
+    rate_limit: 1000  # requests per minute
+    allowed_origins:
+      - "https://dashboard.company.com"
+      - "https://admin.company.com"
+    encryption:
+      tls_cert: "/certs/server.crt"
+      tls_key: "/certs/server.key"
+
+  deployment:
+    runtime: "docker"
+    replicas: 3
+    resources:
+      memory: "2Gi"
+      cpu: "1000m"
+
+# =============================================================================
+# ADVANCED FEATURES
+# =============================================================================
+
+# Pipeline composition - reference other pipelines
+includes:
+  - "base_security.yaml"
+  - "ml_models.yaml"
+
+# Environment-specific overrides
+environments:
+  development:
+    settings:
+      log_level: "DEBUG"
+      monitoring:
+        enabled: false
+
+  production:
+    settings:
+      security:
+        rate_limit: 10000
+      performance:
+        max_concurrent: 50
+
+# Feature flags for gradual rollout
+features:
+  enable_ml_inference: true
+  enable_llm_analysis: false
+  enable_edge_processing: true
+
+# Custom extensions and plugins
+extensions:
+  - name: "prometheus_exporter"
+    config:
+      port: 9090
+      namespace: "dialogchain"
+
+  - name: "jaeger_tracing"
+    config:
+      endpoint: "http://jaeger:14268/api/traces"
+
+# Data transformation templates
+transforms:
+  normalize_image:
+    input: "raw_image"
+    output: "normalized_image"
+    function: "resize_and_normalize"
+    params:
+      width: 640
+      height: 480
+      normalize: true
+
+# Conditional routing based on data content
+routing:
+  rules:
+    - condition: "image_size > 1MB"
+      processors: ["edge_filter", "object_detection"]
+    - condition: "motion_detected == true"
+      processors: ["object_detection", "threat_analysis", "context_analysis"]
+    - default:
+      processors: ["fast_transform", "object_detection"]
