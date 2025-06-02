@@ -1,11 +1,11 @@
-# DialogChain - Complete Installer Package
+# DialogChain - Complete rust Package
 
 Ten pakiet zawiera kompletny system instalacji i generowania projektów DialogChain, podzielony na modularne komponenty dla łatwiejszego zarządzania i rozwoju.
 
 ## 📁 Struktura Pakietu
 
 ```
-dialogchain-installer/
+dialogchain-rust/
 ├── install.sh                 # Główny skrypt instalacyjny
 ├── modules/
 │   ├── system_detection.sh    # Wykrywanie systemu
@@ -30,8 +30,8 @@ curl -sSL https://install.dialogchain.io | bash
 
 ### Ręczna instalacja:
 ```bash
-git clone https://github.com/dialogchain/installer.git
-cd installer
+git clone https://github.com/dialogchain/rust.git
+cd rust
 chmod +x install.sh
 ./install.sh
 ```
@@ -51,7 +51,7 @@ chmod +x install.sh
 - Tworzenie struktury katalogów
 - Walidacja instalacji
 
-### 2. **Moduł Wykrywania Systemu** (`modules/system_detection.sh`)
+### 2. **Moduł Wykrywania Systemu** (`modules/detection.sh`)
 ```bash
 # Funkcje:
 detect_system()           # Wykrywa OS, architekturę, menedżer pakietów
